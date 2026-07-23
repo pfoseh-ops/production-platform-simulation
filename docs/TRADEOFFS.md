@@ -26,3 +26,8 @@
   services justify the operational overhead.
 - No automatic destroy workflow. Destruction of stateful infrastructure is a
   deliberate operator action, not a normal CI event.
+
+---
+
+**Paul Foseh**<br>
+Senior DevOps Engineer

@@ -81,3 +81,8 @@ store.
 - S3 data and Terraform state are versioned, encrypted, and blocked from public
   access.
 - VPC flow logs and EKS control-plane logs support investigation.
+
+---
+
+**Paul Foseh**<br>
+Senior DevOps Engineer

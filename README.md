@@ -253,3 +253,8 @@ See [docs/TRADEOFFS.md](docs/TRADEOFFS.md). The most important constraints are:
 ## License
 
 MIT
+
+---
+
+**Paul Foseh**<br>
+Senior DevOps Engineer

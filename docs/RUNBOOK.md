@@ -105,3 +105,8 @@ kubectl -n observability get secret alertmanager-prometheus-kube-prometheus-aler
 
 Never paste the decoded configuration into tickets if external receiver secrets
 have been added.
+
+---
+
+**Paul Foseh**<br>
+Senior DevOps Engineer
