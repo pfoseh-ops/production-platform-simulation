@@ -37,7 +37,7 @@ jobs:
         run: docker build --tag production-platform-simulation:${{ github.sha }} .
 
       - name: Scan container with Trivy
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: production-platform-simulation:${{ github.sha }}
           format: sarif
@@ -92,7 +92,7 @@ jobs:
         run: tflint --recursive --chdir terraform
 
       - name: Run Checkov
-        uses: bridgecrewio/checkov-action@v12.3058.0
+        uses: bridgecrewio/checkov-action@v12
         with:
           directory: .
           framework: terraform,kubernetes,dockerfile
