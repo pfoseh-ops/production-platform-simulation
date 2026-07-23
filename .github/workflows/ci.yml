@@ -36,6 +36,15 @@ jobs:
       - name: Build container
         run: docker build --tag production-platform-simulation:${{ github.sha }} .
 
+      - name: Report container vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: production-platform-simulation:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+
       - name: Scan container with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -48,7 +57,7 @@ jobs:
 
       - name: Upload Trivy results
         if: always() && hashFiles('trivy-results.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
 
