@@ -10,7 +10,8 @@
 | In-cluster Prometheus/Grafana | Fully reproducible and vendor-neutral | Cluster failure can impair monitoring | Remote-write to managed, cross-account observability |
 | In-cluster alert webhook | Demonstrates the full alert path without third-party credentials | Same failure domain as the application | PagerDuty/Slack receiver with external secret management |
 | Terraform-managed Grafana password | Simple repeatable install | Sensitive value exists in encrypted Terraform state | External Secrets Operator with Secrets Manager |
-| Broad GitHub deployment role | Lets one isolated simulation stack create all required services | Excessive in a shared AWS account | Split bootstrap/network/platform roles, permissions boundary, SCP, and policy tests |
+| Broad GitHub deployment role | Lets one isolated sandbox account create all required services; trust is restricted to this repository's `main` branch and `production` environment OIDC claims | Excessive in a shared or production AWS account | Split bootstrap/network/platform roles, permissions boundary, SCP, and policy tests before using outside the isolated sandbox |
+| Single-region S3 without replication or event notifications | Avoids a second-region bucket, replication transfer/storage charges, and an unused event-consumer stack in this simulation | A regional outage can make state and workload objects unavailable, and object changes do not trigger automated processing | Add cross-region replication and narrowly scoped EventBridge/SQS notifications when resilience and event-driven consumers justify the cost |
 | Pinned tool/chart versions | Reproducible builds and plans | Versions require active maintenance | Dependabot/Renovate plus scheduled compatibility tests |
 | Application S3 bucket protected from force deletion | Prevents accidental data loss | Teardown requires deliberate object/version cleanup | Add retention policy and a reviewed data-disposition workflow |
 

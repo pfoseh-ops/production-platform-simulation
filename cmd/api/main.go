@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -24,6 +25,15 @@ type response struct {
 }
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "-healthcheck" {
+		client := &http.Client{Timeout: 3 * time.Second}
+		if err := healthCheck(client, "http://127.0.0.1:8080/healthz"); err != nil {
+			log.Printf("health check failed: %v", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	port := env("PORT", "8080")
 	mux := routes()
 	server := &http.Server{
@@ -37,6 +47,19 @@ func main() {
 
 	log.Printf("production-simulation-api listening on :%s", port)
 	log.Fatal(server.ListenAndServe())
+}
+
+func healthCheck(client *http.Client, url string) error {
+	response, err := client.Get(url)
+	if err != nil {
+		return fmt.Errorf("request health endpoint: %w", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return errors.New(response.Status)
+	}
+	return nil
 }
 
 func routes() *http.ServeMux {

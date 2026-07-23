@@ -20,13 +20,66 @@ resource "aws_iam_role_policy_attachment" "cluster" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+resource "aws_kms_key" "cluster" {
+  description             = "Encrypts ${var.name} Kubernetes secrets and control-plane logs"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  policy                  = data.aws_iam_policy_document.cluster_kms.json
+  tags                    = var.tags
+}
+
+data "aws_iam_policy_document" "cluster_kms" {
+  #checkov:skip=CKV_AWS_109:KMS key policies require Resource "*" and permissions remain restricted by explicit account-root and CloudWatch Logs principals.
+  #checkov:skip=CKV_AWS_111:KMS key policies require Resource "*" and write access remains restricted by explicit account-root and CloudWatch Logs principals.
+  #checkov:skip=CKV_AWS_356:KMS key policies require Resource "*" because the key ARN is not available while defining its policy.
+  statement {
+    sid     = "AccountAdministrationAndEKSUse"
+    effect  = "Allow"
+    actions = ["kms:*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "CloudWatchLogs"
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt",
+      "kms:DescribeKey",
+      "kms:Encrypt",
+      "kms:GenerateDataKey",
+      "kms:ReEncryptFrom",
+      "kms:ReEncryptTo"
+    ]
+    principals {
+      type        = "Service"
+      identifiers = ["logs.${data.aws_region.current.name}.amazonaws.com"]
+    }
+    resources = ["*"]
+    condition {
+      test     = "ArnLike"
+      variable = "kms:EncryptionContext:aws:logs:arn"
+      values   = ["arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/eks/${var.name}/cluster"]
+    }
+  }
+}
+
 resource "aws_cloudwatch_log_group" "cluster" {
   name              = "/aws/eks/${var.name}/cluster"
-  retention_in_days = 30
+  retention_in_days = 365
+  kms_key_id        = aws_kms_key.cluster.arn
   tags              = var.tags
 }
 
 resource "aws_eks_cluster" "this" {
+  #checkov:skip=CKV_AWS_39:GitHub-hosted runners require the public endpoint; access remains limited to explicit trusted CIDRs.
+  #checkov:skip=CKV_AWS_38:The production variable validation prohibits 0.0.0.0/0 and requires at least one explicit trusted CIDR.
   name     = var.name
   role_arn = aws_iam_role.cluster.arn
   version  = var.kubernetes_version
@@ -42,6 +95,13 @@ resource "aws_eks_cluster" "this" {
   access_config {
     authentication_mode                         = "API_AND_CONFIG_MAP"
     bootstrap_cluster_creator_admin_permissions = true
+  }
+
+  encryption_config {
+    provider {
+      key_arn = aws_kms_key.cluster.arn
+    }
+    resources = ["secrets"]
   }
 
   vpc_config {

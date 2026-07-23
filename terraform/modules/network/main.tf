@@ -17,6 +17,14 @@ resource "aws_vpc" "this" {
   tags = merge(var.tags, { Name = var.name })
 }
 
+resource "aws_default_security_group" "this" {
+  vpc_id  = aws_vpc.this.id
+  ingress = []
+  egress  = []
+
+  tags = merge(var.tags, { Name = "${var.name}-default-deny-all" })
+}
+
 resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.this.id
   tags   = merge(var.tags, { Name = "${var.name}-igw" })
@@ -28,7 +36,7 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.this.id
   availability_zone       = each.key
   cidr_block              = each.value
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = false
 
   tags = merge(var.tags, {
     Name                     = "${var.name}-public-${each.key}"
@@ -109,7 +117,7 @@ resource "aws_flow_log" "this" {
 
 resource "aws_cloudwatch_log_group" "flow_logs" {
   name              = "/aws/vpc/${var.name}/flow-logs"
-  retention_in_days = 30
+  retention_in_days = 365
   kms_key_id        = aws_kms_key.logs.arn
   tags              = var.tags
 }
@@ -127,6 +135,9 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 data "aws_iam_policy_document" "logs_kms" {
+  #checkov:skip=CKV_AWS_109:KMS key policies require Resource "*" and permissions remain restricted by explicit AWS and CloudWatch Logs principals.
+  #checkov:skip=CKV_AWS_111:KMS key policies require Resource "*" and write access remains restricted by explicit AWS and CloudWatch Logs principals.
+  #checkov:skip=CKV_AWS_356:KMS key policies require Resource "*" because the key ARN is not available while defining its policy.
   statement {
     sid     = "AccountAdministration"
     effect  = "Allow"
