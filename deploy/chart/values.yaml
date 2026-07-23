@@ -1,0 +1,14 @@
+replicaCount: 3
+
+image:
+  repository: ghcr.io/pfoseh-ops/production-platform-simulation
+  tag: latest
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 128Mi

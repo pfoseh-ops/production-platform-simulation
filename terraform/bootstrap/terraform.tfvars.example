@@ -1,0 +1,3 @@
+aws_region        = "us-east-1"
+state_bucket_name = "replace-with-a-globally-unique-name"
+github_repository = "pfoseh-ops/production-platform-simulation"

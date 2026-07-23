@@ -1,0 +1,49 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "production-simulation.name" . }}
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      {{- include "production-simulation.labels" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "production-simulation.name" . }}
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: production-simulation
+      rules:
+        - alert: ProductionSimulationHighErrorRate
+          expr: sum(increase(app_errors_total[2m])) > 10
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Production simulation error rate is high"
+            runbook_url: "https://github.com/pfoseh-ops/production-platform-simulation/blob/main/docs/RUNBOOK.md#high-error-rate"
+        - alert: ProductionSimulationUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="production-simulation",deployment="production-simulation"} < 2
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Fewer than two application replicas are available"
+            runbook_url: "https://github.com/pfoseh-ops/production-platform-simulation/blob/main/docs/RUNBOOK.md#deployment-unavailable"
+        - alert: ProductionSimulationPodRestarts
+          expr: increase(kube_pod_container_status_restarts_total{namespace="production-simulation"}[10m]) > 2
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Application pods are restarting"
+            runbook_url: "https://github.com/pfoseh-ops/production-platform-simulation/blob/main/docs/RUNBOOK.md#pod-restarts"

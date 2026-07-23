@@ -1,0 +1,6 @@
+aws_region             = "us-east-1"
+availability_zones     = ["us-east-1a", "us-east-1b"]
+public_access_cidrs    = ["203.0.113.10/32"]
+image_repository      = "ghcr.io/pfoseh-ops/production-platform-simulation"
+image_tag             = "replace-with-git-sha"
+grafana_admin_password = "replace-through-TF_VAR_grafana_admin_password"

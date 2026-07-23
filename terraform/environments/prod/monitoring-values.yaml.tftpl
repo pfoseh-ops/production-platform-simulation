@@ -1,0 +1,39 @@
+grafana:
+  adminPassword: "${grafana_admin_password}"
+  service:
+    type: ClusterIP
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    size: 10Gi
+
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    replicas: 2
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: simulation-webhook
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+    receivers:
+      - name: simulation-webhook
+        webhook_configs:
+          - url: http://production-simulation.production-simulation.svc.cluster.local:8080/alerts
+            send_resolved: true

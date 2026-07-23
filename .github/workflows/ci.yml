@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  application:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Format check
+        run: test -z "$(gofmt -l cmd)"
+
+      - name: Unit tests
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Static analysis
+        run: go vet ./...
+
+      - name: Build container
+        run: docker build --tag production-platform-simulation:${{ github.sha }} .
+
+      - name: Scan container with Trivy
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: production-platform-simulation:${{ github.sha }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Upload Trivy results
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+  infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.17.2
+
+      - name: Terraform format
+        run: terraform fmt -check -recursive terraform
+
+      - name: Validate bootstrap stack
+        run: |
+          terraform -chdir=terraform/bootstrap init -backend=false
+          terraform -chdir=terraform/bootstrap validate
+
+      - name: Validate production stack
+        run: |
+          terraform -chdir=terraform/environments/prod init -backend=false
+          terraform -chdir=terraform/environments/prod validate
+
+      - name: Lint Helm chart
+        run: helm lint deploy/chart
+
+      - name: Run TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.55.1
+
+      - run: tflint --init
+
+      - name: Lint Terraform
+        run: tflint --recursive --chdir terraform
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12.3058.0
+        with:
+          directory: .
+          framework: terraform,kubernetes,dockerfile
+          quiet: true
+          soft_fail: false
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository history
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
